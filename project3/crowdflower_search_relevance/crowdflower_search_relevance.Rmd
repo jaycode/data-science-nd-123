@@ -1,17 +1,17 @@
 ---
 title: "Crowdflower Search Result Relevance"
-author: "Jay"
+author: "Jay Teguh Wijaya"
 date: "Friday, May 15, 2015"
 output: html_document
 ---
 
-## Overview
+## 1. Overview
 
 In this project, I am visualising a dataset of a Kaggle competition called [Search Result Relevance](https://www.kaggle.com/c/crowdflower-search-relevance) by **CrowdFlower**. By choosing this dataset, I am hoping to prove the practicality of doing Udacity courses i.e. have we really learned relevant knowledge to real-world data analysis problem? and what is the gap between what we have learned so far to what the industry needs?
 
 The dataset in this project has initially 6 variables, but we will have to preprocess it so we can use it in our analysis. In the end the dataset used in our analysis would contain 8+ variables, thus adhering to this project's requirements.
 
-## Competition Description
+## 2. Competition Description
 
 So many of our favorite daily activities are mediated by proprietary search algorithms. Whether you're trying to find a stream of that reality TV show on cat herding or shopping an eCommerce site for a new set of Japanese sushi knives, the relevance of search results is often responsible for your (un)happiness. Currently, small online businesses have no good way of evaluating the performance of their search algorithms, making it difficult for them to provide an exceptional customer experience.
 
@@ -31,7 +31,7 @@ setwd('D:/Projects/data_science/nanodegree_data_analyst/ndgree/project3/crowdflo
 
 ```
 
-## About the Dataset
+## 3. About the Dataset
 
 To evaluate search relevancy, CrowdFlower has had their crowd evaluate searches from a handful of eCommerce websites. A total of 261 search terms were generated, and CrowdFlower put together a list of products and their corresponding search terms. Each rater in the crowd was asked to give a product search term a score of 1, 2, 3, 4, with 4 indicating the item completely satisfies the search query, and 1 indicating the item doesn't match the search term.
 
@@ -44,7 +44,7 @@ There are two datasets provided for this competition:
 1. **train.csv**: Contains training data, which contains target responses.
 2. **test.csv**: Contains test data that has no target responses.
 
-## Initial Analysis and Data Exploration
+## 3. Initial Analysis and Data Exploration
 
 **Note**: Much of the scripts here are taken from the competition's official documentation. [^1]
 
@@ -161,16 +161,17 @@ set.seed(1)
 plot_word_counts(sample(c(train_raw$product_description, test_raw$product_description), 1000))
 ```
 
-## Working Pipeline
+## 4. Working Pipeline
 
 I divide the working pipeline for this project into 3 parts:
 1. **Discovering The Variables**: In here I would try out several preprocessing ideas to find out which variables have considerable impact on our model.
 2. **Preprocessing Dataset**: In here I would preprocess our dataset based on our findings on previous step.
-3. **Writing and Benchmarking Various Machine Learning Algorithms.**: In this part I am going to try out several ML algorithms and benchmark them based on their performance and precision. Several submissions may be required here to find out how well the model generalise on different dataset.
+3. **Machine Learning Algorithms**: In this part I am going to try out several ML algorithms and benchmark them based on their performance and precision. Several submissions may be required here to find out how well the model generalise on different dataset.
 
 For the course of this project I will only document R's linear regression, but if you are interested in more details or hook up to work on more kaggle projects together, I would be happy to share. Send me an email teguh w purwanto at gmail if you do.
 
-## 1. Discovering The Variables
+## 5. The Actual Work
+### 5.1. Discovering The Variables
 
 Now that we get a little more understanding on the data, we can begin to wrangle with it to squeeze out useful variables from the dataset.
 
@@ -182,7 +183,7 @@ There are some preprocessing ideas that comes up directly after seeing the initi
 4. Let's review Google's early paper about search engines, we may be able to get some insights from there.
 5. Let's try other unlikely variables just for fun. Does number of words in product title and description have a correlation to relevance, somehow?
 
-### Stemming Or Lemmatization?
+#### 5.1.1. Stemming Or Lemmatization?
 
 **Stemming** usually refers to a crude heuristic process that chops off the ends of words in the hope of achieving this goal correctly most of the time, and often includes the removal of derivational affixes.
 
@@ -192,47 +193,104 @@ If confronted with the token *saw*, stemming might return just *s*, whereas lemm
 
 Linguistic processing for stemming or lemmatization is often done by an additional plug-in component to the indexing process, and a number of such components exist, both commercial and open-source. [^2]
 
-In our project, let us try both stemming and lemmatization and see which of them produces better model. Stemming algorithm is provided by R's Text Mining package (`package(tm)`) while Lemmatization algorithm is provided by **TODO** package.
+In our project, let us try both stemming and lemmatization and see which of them produces better model. Stemming algorithm is provided by R's Text Mining package (`package(tm)`) while Lemmatization algorithm is provided by korPus (`package(korPus)`) package with the help of `TreeTagger` app.
 
-**Trying out Lemmatization Package**
+#### 5.1.2. Preparing Corpus Helper
 
-Stemming algorithm is relatively simple, but I would probably need to test out Lemmatization algorithm to see if it behaves as expected.
-
-```{r}
-suppressWarnings(suppressMessages(library(koRpus)))
-tagged.results <- treetag(c("run", "ran", "running"), treetagger="manual", format="obj",
-                      TT.tknz=FALSE , lang="en",
-                      TT.options=list(path="./TreeTagger", preset="en"))
-tagged.results@TT.res
-```
-
-### Google Early Paper on Search Engines
-
-In Google's early paper about pagerank chapter 3.1. and 3.2., it is explained that searching on the web is vastly different than searching on controlled environment, like text documents, for example. I wonder if we could somehow infer meta information of the products we can come up with better predictions? [^3]
-
+`prepare_corpus` is a function to, well, prepare our corpus of words. From it we will run our stemming and lemmatization algorithm.
 
 ```{r}
-# This function stems the texts found in "var" variable of dataframe "df"
-# and returns the passed dataframe "new_df" with "[var]_stemmed" and "[var]_stemmed_count"
-# variables.
-stem_corpus <- function(df, new_df, var) {
+prepare_corpus <- function(df, var) {
   eval(parse(text=paste("corpus <- VCorpus(VectorSource(tolower(",
              "df$", var, ")))", sep="")))
   corpus <- tm_map(corpus, removePunctuation)
   corpus <- tm_map(corpus, removeWords, stopwords("english"))
+}
+```
+
+
+#### 5.1.3. Setting Up Stemming Helpers.
+
+Below is our helper to stem passed corpus.
+
+```{r}
+# This function stems the texts found in "var" 
+stem_corpus <- function(corpus) {
   corpus <- tm_map(corpus, stemDocument)
   
-  corpus_text <- data.frame(text=unlist(
-    sapply(corpus, `[`, "content")), stringsAsFactors=F)
-  eval(parse(text=paste("new_df$", var,
-                        "_stemmed <- corpus_text$text", sep="")))
-  eval(parse(text=paste("new_df$", var,
-                        "_stemmed_count <- sapply(",
-    "gregexpr(\"\\\\W+\", corpus_text$text), length) + 1",
-    sep="")))
-  return(new_df)
+  corpus_text <- data.frame(
+    text=unlist(sapply(corpus, `[`, "content")),
+    stringsAsFactors=F
+  )
+  # "Simple" word count with regex.
+  corpus_text$count <- sapply(gregexpr("\\b\\W+\\b", corpus_text$text, perl=TRUE), function(x) sum(x>0) ) + 1
+  return(corpus_text)
 }
 
+test_stem_corpus <- function() {
+  df <- data.frame(query = c('run', 'running', 'runs running', 'running shoes'))
+  corpus <- prepare_corpus(df, 'query')
+  corpus_text <- stem_corpus(corpus)
+  stopifnot(
+    all.equal(corpus_text$text[1], 'run'),
+    all.equal(corpus_text$count[1], 1),
+    all.equal(corpus_text$text[2], 'run'),
+    all.equal(corpus_text$count[2], 1),
+    all.equal(corpus_text$text[3], 'run run'),
+    all.equal(corpus_text$count[3], 2),
+    all.equal(corpus_text$text[4], 'run shoe'),
+    all.equal(corpus_text$count[4], 2)
+  )
+}
+
+test_stem_corpus()
+```
+
+#### 5.1.4. Setting up Lemmatization Helpers.
+
+Lemmatization is a bit more complex as we need to build our own function based on package `koRpus` which uses external app called `TreeTagger`.
+
+**Trying out Lemmatization Package**
+
+*Before running the code bellow make sure you have TreeTagger installed in your system. The installation process should be rather straightforward (read INSTALL.txt document in their app). TreeTagger can be obtained from here: [TreeTagger website](http://www.cis.uni-muenchen.de/~schmid/tools/TreeTagger/)*
+```{r}
+suppressWarnings(suppressMessages(library(koRpus)))
+# Set the path to your local TreeTagger installation accordingly.
+treetagger_path <- "C://TreeTagger"
+tagged.results <- treetag(c("run", "ran", "running"), treetagger="manual", format="obj",
+                      TT.tknz=FALSE , lang="en",
+                      TT.options=list(path=treetagger_path, preset="en"))
+# When everything is correct, following code should display the lemma for given words:
+tagged_results <- tagged.results@TT.res
+tagged_results$token
+# All the above tokens are converted into following lemma:
+tagged_results$lemma
+```
+
+Once we are sure `TreeTagger` package works well we can start writing our helpers.
+
+```{r}
+
+# This is an equivalent of function "stemDocument" when we did our stemming algorithm earlier.
+lemmatization_transformation <- function(x, language = Language(x)) {
+  
+  return(x)
+}
+
+lemmatize_corpus <- function() {
+  
+}
+
+test_lemmatize_corpus <- function() {
+  
+}
+```
+
+Great! Seems like lemmatization works as well. Now we can switch our focus to creating the helper to calculate match score by comparing given queries and texts.
+
+#### 5.1.5. Setting Up Score Calculation Helpers.
+
+```{r}
 # This function calculates the score of matches between a list of queries and 
 # a list of texts. We are trying different methods to calculate the score here,
 # so rather than reading the method from documentation, review how it works from
@@ -286,7 +344,15 @@ test_calculate_match_score <- function() {
 # rewrite this function.
 preprocess_data <- function(df) {
   new_df <- data.frame(id = df$id)
-  new_df <- stem_corpus(df, new_df, "query")
+  
+  corpus <- prepare_corpus(df, "query")
+  stemmed_df <- stem_corpus(corpus)
+  new_df$query_stemmed <- stemmed_df$text
+  new_df$query_stemmed_count <- stemmed_df$count
+  lemma_df <- lemmatize_corpus(corpus)
+  new_df$query_lemma <- lemma_df$text
+  new_df$query_lemma_count <- lemma_df$count
+    
   cat("queries processed\n")
   new_df <- stem_corpus(df, new_df, "product_title")
   cat("product titles processed\n")
@@ -322,7 +388,19 @@ ggplot(aes(x = median_relevance,
   geom_jitter(alpha=.2)
 ```
 
-## References
+#### 5.1.6. Google's Early Paper on Search Engines
+
+In Google's early paper about pagerank chapter 3.1. and 3.2., it is explained that searching on the web is vastly different than searching on controlled environment, like text documents, for example. I wonder if we could somehow infer meta information of the products we can come up with better predictions? [^3]
+
+### 5.2. Preprocessing Dataset
+
+#### 5.2.1. Final Plots and Summary
+
+### 5.3. Machine Learning Algorithms
+
+## 6. Reflection
+
+## 7. References
 
 [^1]: Exploring Crowdflower Data: https://www.kaggle.com/users/993/ben-hamner/crowdflower-search-relevance/exploring-the-crowdflower-data
 [^2]: Stemming and lemmatization. http://nlp.stanford.edu/IR-book/html/htmledition/stemming-and-lemmatization-1.html

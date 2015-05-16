@@ -8,7 +8,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 
-<meta name="author" content="Jay" />
+<meta name="author" content="Jay Teguh Wijaya" />
 
 
 <title>Crowdflower Search Result Relevance</title>
@@ -53,7 +53,7 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 
 <div id="header">
 <h1 class="title">Crowdflower Search Result Relevance</h1>
-<h4 class="author"><em>Jay</em></h4>
+<h4 class="author"><em>Jay Teguh Wijaya</em></h4>
 <h4 class="date"><em>Friday, May 15, 2015</em></h4>
 </div>
 
@@ -81,6 +81,7 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 </div>
 <div id="initial-analysis-and-data-exploration" class="section level2">
 <h2>Initial Analysis and Data Exploration</h2>
+<p><strong>Note</strong>: Much of the scripts here are taken from the competition’s official documentation. <a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a></p>
 <p>Let us first load the data and include all the required libraries.</p>
 <pre class="r"><code># init
 # readr library to successfully read csv files.
@@ -191,8 +192,13 @@ set.seed(1)
 plot_word_counts(sample(c(train_raw$product_description, test_raw$product_description), 1000))</code></pre>
 <p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABUAAAAPACAMAAADDuCPrAAAA3lBMVEUAAAAAADoAAGYAOjoAOmYAOpAAZmYAZrY6AAA6Ojo6kJA6kNtLkuNmAABmOgBmtv9/f39/f5V/f6t/lat/lcF/q9aQOgCQkGaQ2/+Vf3+VlZWVlcGVq6uVwcGVwdaVweurf3+rlX+rq3+rq5WrwcGr1tar1v+2ZgC225C2/7a2///BlX/BwZXB1sHB6//Wq3/WwZXW1qvW1v/W68HW/+vW///bkDrbtmbb/7bb///l5eXrwZXr6+vr/9br/+vr///y8vL/tmb/1qv/25D/68H//7b//9b//9v//+v///83tYCxAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nO3dDX8b+bnWcbdQdg/dpUqaLDU94LQHbE4DEVASOAhIonqz8ft/Q2cepXmy/X+a+5pb+V2fz24sxzNf6Zbm8ow0Uq4eCCGEJOVKfQUIIcRrKFBCCEkMBUoIIYmhQAkhJDEUKCGEJIYCJYSQxFCghBCSGAqUEEISQ4ESQkhiKFBCCEkMBUoIIYmhQAkhJDEUKCGEJIYCJYSQxFCghBCSGAqUEEISQ4ESQkhiKFBCCEkMBUoIIYmhQAkhJDEUKCGEJIYCJYSQxFCghBCSGAqUEEISQ4ESQkhiKFBCCEkMBUoIIYmhQAkhJDEUKCGEJIYCJYSQxFCghBCSGAqUEEISQ4ESQkhiKFBCCEkMBUoIIYmhQAkhJDEUKCGEJEZZoP+nQMqsBRMTE3O8lqBQoJiYmJjztQSFAsXExMScryUoFCgmJibmfC1BoUAxMTEx52sJCgWKiYmJOV9LUChQTExMzPlagkKBYmJiYs7XEhQKFBMTE3O+lqBQoJiYmJjztQSFAsXExMScryUoFCgmJibmfC1BoUAxMTEx52sJCgWKiYmJOV9LUChQTExMzPlagkKBYmJiYs7XEhQKFBMTE3O+lqBQoJiYmJjztQSFAsXExMScryUoFCgmJibmfC1BoUAxMTEx52sJCgWKiYmJOV9LUChQTExMzPlagkKBYmJiYs7XEhQKFBMTE3O+lqBQoJiYmJjztQSFAsXExMScryUoFCgmJibmfC1BoUAxMTEx52sJCgWKiYmJOV9LUJQF+qlAyqwFExMTc7yWoLAHiomJiTlfS1AoUExMTMz5WoJCgWJiYmLO1xIUChQTExNzvpagUKCYmJiY87UEhQLFxMTEnK8lKJsq0B+skjvavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlpiyQD9NY1agMzkqC9d89WBiYlqagSXGHmjK76a85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlhgFmjLavOUxMTG3bgaWGAWaMtq85TExMbduBpYYBZoy2rzlMTExt24GlliZAj3ubs5f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" title alt width="672" /></p>
 </div>
-<div id="preprocessing" class="section level2">
-<h2>Preprocessing</h2>
+<div id="working-pipeline" class="section level2">
+<h2>Working Pipeline</h2>
+<p>I divide the working pipeline for this project into 3 parts: 1. <strong>Discovering The Variables</strong>: In here I would try out several preprocessing ideas to find out which variables have considerable impact on our model. 2. <strong>Preprocessing Dataset</strong>: In here I would preprocess our dataset based on our findings on previous step. 3. <strong>Writing and Benchmarking Various Machine Learning Algorithms.</strong>: In this part I am going to try out several ML algorithms and benchmark them based on their performance and precision. Several submissions may be required here to find out how well the model generalise on different dataset.</p>
+<p>For the course of this project I will only document R’s linear regression, but if you are interested in more details or hook up to work on more kaggle projects together, I would be happy to share. Send me an email teguh w purwanto at gmail if you do.</p>
+</div>
+<div id="discovering-the-variables" class="section level2">
+<h2>1. Discovering The Variables</h2>
 <p>Now that we get a little more understanding on the data, we can begin to wrangle with it to squeeze out useful variables from the dataset.</p>
 <p>There are some preprocessing ideas that comes up directly after seeing the initial data, that may relate to relevance:</p>
 <ol style="list-style-type: decimal">
@@ -207,29 +213,93 @@ plot_word_counts(sample(c(train_raw$product_description, test_raw$product_descri
 <p><strong>Stemming</strong> usually refers to a crude heuristic process that chops off the ends of words in the hope of achieving this goal correctly most of the time, and often includes the removal of derivational affixes.</p>
 <p><strong>Lemmatization</strong> usually refers to doing things properly with the use of a vocabulary and morphological analysis of words, normally aiming to remove inflectional endings only and to return the base or dictionary form of a word, which is known as the <em>lemma</em>.</p>
 <p>If confronted with the token <em>saw</em>, stemming might return just <em>s</em>, whereas lemmatization would attempt to return either <em>see</em> or <em>saw</em> depending on whether the use of the token was as a <em>verb</em> or a <em>noun</em>. The two may also differ in that stemming most commonly collapses derivationally related words, whereas lemmatization commonly only collapses the different inflectional forms of a lemma.</p>
-<p>Linguistic processing for stemming or lemmatization is often done by an additional plug-in component to the indexing process, and a number of such components exist, both commercial and open-source. <a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a></p>
-</div>
-<div id="google-early-paper-on-search-engines" class="section level3">
-<h3>Google Early Paper on Search Engines</h3>
-<p>In Google’s early paper about pagerank chapter 3.1. and 3.2., it is explained that searching on the web is vastly different than searching on controlled environment, like text documents, for example. I wonder if we could somehow infer meta information of the products we can come up with better predictions? <a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a></p>
-<pre class="r"><code>process_corpus &lt;- function(df, new_df, var) {
+<p>Linguistic processing for stemming or lemmatization is often done by an additional plug-in component to the indexing process, and a number of such components exist, both commercial and open-source. <a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a></p>
+<p>In our project, let us try both stemming and lemmatization and see which of them produces better model. Stemming algorithm is provided by R’s Text Mining package (<code>package(tm)</code>) while Lemmatization algorithm is provided by korPus (<code>package(korPus)</code>) package with the help of <code>TreeTagger</code> app.</p>
+<div id="preparing-corpus-helper" class="section level4">
+<h4>Preparing Corpus Helper</h4>
+<p><code>prepare_corpus</code> is a function to, well, prepare our corpus of words. From it we will run our stemming and lemmatization algorithm.</p>
+<pre class="r"><code>prepare_corpus &lt;- function(df, var) {
   eval(parse(text=paste(&quot;corpus &lt;- VCorpus(VectorSource(tolower(&quot;,
              &quot;df$&quot;, var, &quot;)))&quot;, sep=&quot;&quot;)))
   corpus &lt;- tm_map(corpus, removePunctuation)
   corpus &lt;- tm_map(corpus, removeWords, stopwords(&quot;english&quot;))
+}</code></pre>
+</div>
+<div id="setting-up-stemming-helpers." class="section level4">
+<h4>Setting Up Stemming Helpers.</h4>
+<p>Below is our helper to stem passed corpus.</p>
+<pre class="r"><code># This function stems the texts found in &quot;var&quot; 
+stem_corpus &lt;- function(corpus) {
   corpus &lt;- tm_map(corpus, stemDocument)
   
-  corpus_text &lt;- data.frame(text=unlist(
-    sapply(corpus, `[`, &quot;content&quot;)), stringsAsFactors=F)
-  eval(parse(text=paste(&quot;new_df$&quot;, var,
-                        &quot;_stemmed &lt;- corpus_text$text&quot;, sep=&quot;&quot;)))
-  eval(parse(text=paste(&quot;new_df$&quot;, var,
-                        &quot;_stemmed_count &lt;- sapply(&quot;,
-    &quot;gregexpr(\&quot;\\\\W+\&quot;, corpus_text$text), length) + 1&quot;,
-    sep=&quot;&quot;)))
-  return(new_df)
+  corpus_text &lt;- data.frame(
+    text=unlist(sapply(corpus, `[`, &quot;content&quot;)),
+    stringsAsFactors=F
+  )
+  # &quot;Simple&quot; word count with regex.
+  corpus_text$count &lt;- sapply(gregexpr(&quot;\\b\\W+\\b&quot;, corpus_text$text, perl=TRUE), function(x) sum(x&gt;0) ) + 1
+  return(corpus_text)
 }
 
+test_stem_corpus &lt;- function() {
+  df &lt;- data.frame(query = c('run', 'running', 'runs running', 'running shoes'))
+  corpus &lt;- prepare_corpus(df, 'query')
+  corpus_text &lt;- stem_corpus(corpus)
+  stopifnot(
+    all.equal(corpus_text$text[1], 'run'),
+    all.equal(corpus_text$count[1], 1),
+    all.equal(corpus_text$text[2], 'run'),
+    all.equal(corpus_text$count[2], 1),
+    all.equal(corpus_text$text[3], 'run run'),
+    all.equal(corpus_text$count[3], 2),
+    all.equal(corpus_text$text[4], 'run shoe'),
+    all.equal(corpus_text$count[4], 2)
+  )
+}
+
+test_stem_corpus()</code></pre>
+</div>
+<div id="setting-up-lemmatization-helpers." class="section level4">
+<h4>Setting up Lemmatization Helpers.</h4>
+<p>Lemmatization is a bit more complex as we need to build our own function based on package <code>koRpus</code> which uses external app called <code>TreeTagger</code>.</p>
+<p><strong>Trying out Lemmatization Package</strong></p>
+<p><em>Before running the code bellow make sure you have TreeTagger installed in your system. The installation process should be rather straightforward (read INSTALL.txt document in their app). TreeTagger can be obtained from here: <a href="http://www.cis.uni-muenchen.de/~schmid/tools/TreeTagger/">TreeTagger website</a></em></p>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(koRpus)))
+# Set the path to your local TreeTagger installation accordingly.
+treetagger_path &lt;- &quot;C://TreeTagger&quot;
+tagged.results &lt;- treetag(c(&quot;run&quot;, &quot;ran&quot;, &quot;running&quot;), treetagger=&quot;manual&quot;, format=&quot;obj&quot;,
+                      TT.tknz=FALSE , lang=&quot;en&quot;,
+                      TT.options=list(path=treetagger_path, preset=&quot;en&quot;))</code></pre>
+<pre><code>## Assuming '' as encoding for the input file. If the results turn out to be erroneous, check the file for invalid characters, e.g. em.dashes or fancy quotes, and/or consider setting 'encoding' manually.</code></pre>
+<pre class="r"><code># When everything is correct, following code should display the lemma for given words:
+tagged_results &lt;- tagged.results@TT.res
+tagged_results$token</code></pre>
+<pre><code>## [1] &quot;run&quot;     &quot;ran&quot;     &quot;running&quot;</code></pre>
+<pre class="r"><code># All the above tokens are converted into following lemma:
+tagged_results$lemma</code></pre>
+<pre><code>## [1] &quot;run&quot; &quot;run&quot; &quot;run&quot;</code></pre>
+<p>Once we are sure <code>TreeTagger</code> package works well we can start writing our helpers.</p>
+<pre class="r"><code># This is an equivalent of function &quot;stemDocument&quot; when we did our stemming algorithm earlier.
+lemmatization_transformation &lt;- function(x, language = Language(x)) {
+  
+  return(x)
+}
+
+lemmatize_corpus &lt;- function() {
+  
+}
+
+test_lemmatize_corpus &lt;- function() {
+  
+}</code></pre>
+<p>Great! Seems like lemmatization works as well. Now we can switch our focus to creating the helper to calculate match score by comparing given queries and texts.</p>
+</div>
+<div id="setting-up-score-calculation-helpers." class="section level4">
+<h4>Setting Up Score Calculation Helpers.</h4>
+<pre class="r"><code># This function calculates the score of matches between a list of queries and 
+# a list of texts. We are trying different methods to calculate the score here,
+# so rather than reading the method from documentation, review how it works from
+# test function test_calculate_match_score (Yes, I do love TDD).
 calculate_match_score &lt;- function(queries, texts) {
   scores &lt;- list(length=length(queries))
   for (i in 1:length(queries)) {
@@ -252,34 +322,46 @@ calculate_match_score &lt;- function(queries, texts) {
 }
 
 # Testing function calculate_match_score
-queries &lt;- c(&quot;first query&quot;,
-             &quot;second query &quot;,
-             &quot;third query&quot;,
-             &quot; this fourth query should&quot;,
-             &quot;led christma light&quot;,
-             &quot;soda stream&quot;)
-texts &lt;- c(
-  &quot;first one should  return 0.5&quot;,
-  &quot;this one should return 0&quot;,
-  &quot;this third query   should return 1 third&quot;,
-  &quot;this fourth one should return 0.75&quot;,
-  &quot;set  10 batteri oper multi led train christma light  clear wire&quot;,
-  &quot;sodastream home soda maker kit&quot;)
-scores &lt;- calculate_match_score(queries, texts)
-stopifnot(all.equal(scores[[1]], 0.5) &amp;&amp;
-          all.equal(scores[[2]], 0) &amp;&amp;
-          all.equal(scores[[3]], 1) &amp;&amp;
-          all.equal(scores[[4]], 0.75) &amp;&amp;
-          all.equal(scores[[5]], 1) &amp;&amp;
-          all.equal(scores[[6]], 1))
+test_calculate_match_score &lt;- function() {
+  queries &lt;- c(&quot;first query&quot;,
+               &quot;second query &quot;,
+               &quot;third query&quot;,
+               &quot; this fourth query should&quot;,
+               &quot;led christma light&quot;,
+               &quot;soda stream&quot;)
+  texts &lt;- c(
+    &quot;first one should  return 0.5&quot;,
+    &quot;this one should return 0&quot;,
+    &quot;this third query   should return 1 third&quot;,
+    &quot;this fourth one should return 0.75&quot;,
+    &quot;set  10 batteri oper multi led train christma light  clear wire&quot;,
+    &quot;sodastream home soda maker kit&quot;)
+  scores &lt;- calculate_match_score(queries, texts)
+  stopifnot(all.equal(scores[[1]], 0.5) &amp;&amp;
+            all.equal(scores[[2]], 0) &amp;&amp;
+            all.equal(scores[[3]], 1) &amp;&amp;
+            all.equal(scores[[4]], 0.75) &amp;&amp;
+            all.equal(scores[[5]], 1) &amp;&amp;
+            all.equal(scores[[6]], 1))
+}
 
+# The initial preprocess_data function. Later after we find the better variables
+# rewrite this function.
 preprocess_data &lt;- function(df) {
   new_df &lt;- data.frame(id = df$id)
-  new_df &lt;- process_corpus(df, new_df, &quot;query&quot;)
+  
+  corpus &lt;- prepare_corpus(df, &quot;query&quot;)
+  stemmed_df &lt;- stem_corpus(corpus)
+  new_df$query_stemmed &lt;- stemmed_df$text
+  new_df$query_stemmed_count &lt;- stemmed_df$count
+  lemma_df &lt;- lemmatize_corpus(corpus)
+  new_df$query_lemma &lt;- lemma_df$text
+  new_df$query_lemma_count &lt;- lemma_df$count
+    
   cat(&quot;queries processed\n&quot;)
-  new_df &lt;- process_corpus(df, new_df, &quot;product_title&quot;)
+  new_df &lt;- stem_corpus(df, new_df, &quot;product_title&quot;)
   cat(&quot;product titles processed\n&quot;)
-  new_df &lt;- process_corpus(df, new_df, &quot;product_description&quot;)
+  new_df &lt;- stem_corpus(df, new_df, &quot;product_description&quot;)
   cat(&quot;product descriptions processed\n&quot;)
   new_df$title_match_score &lt;- calculate_match_score(new_df$query_stemmed, new_df$product_title_stemmed)
   cat(&quot;query vs product title match score calculated\n&quot;)
@@ -296,12 +378,18 @@ preprocess_data &lt;- function(df) {
   }
   return(new_df)
 }</code></pre>
-<pre class="r"><code>train &lt;- preprocess_data(train_raw)</code></pre>
+<pre class="r"><code># This code takes awhile to run.
+train &lt;- preprocess_data(train_raw)</code></pre>
 <pre class="r"><code>head(train)
 ggplot(aes(x = median_relevance,
            y = title_match_score),
        data = train[sample(1:length(train$median_relevance), 10000), ]) +
   geom_jitter(alpha=.2)</code></pre>
+</div>
+</div>
+<div id="googles-early-paper-on-search-engines" class="section level3">
+<h3>Google’s Early Paper on Search Engines</h3>
+<p>In Google’s early paper about pagerank chapter 3.1. and 3.2., it is explained that searching on the web is vastly different than searching on controlled environment, like text documents, for example. I wonder if we could somehow infer meta information of the products we can come up with better predictions? <a href="#fn3" class="footnoteRef" id="fnref3"><sup>3</sup></a></p>
 </div>
 </div>
 <div id="references" class="section level2">
@@ -310,8 +398,9 @@ ggplot(aes(x = median_relevance,
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>Stemming and lemmatization. <a href="http://nlp.stanford.edu/IR-book/html/htmledition/stemming-and-lemmatization-1.html">http://nlp.stanford.edu/IR-book/html/htmledition/stemming-and-lemmatization-1.html</a><a href="#fnref1">↩</a></p></li>
-<li id="fn2"><p>Brin, S. and Page, L. (1998) The Anatomy of a Large-Scale Hypertextual Web Search Engine. <a href="http://ilpubs.stanford.edu:8090/361/">http://ilpubs.stanford.edu:8090/361/</a><a href="#fnref2">↩</a></p></li>
+<li id="fn1"><p>Exploring Crowdflower Data: <a href="https://www.kaggle.com/users/993/ben-hamner/crowdflower-search-relevance/exploring-the-crowdflower-data">https://www.kaggle.com/users/993/ben-hamner/crowdflower-search-relevance/exploring-the-crowdflower-data</a><a href="#fnref1">↩</a></p></li>
+<li id="fn2"><p>Stemming and lemmatization. <a href="http://nlp.stanford.edu/IR-book/html/htmledition/stemming-and-lemmatization-1.html">http://nlp.stanford.edu/IR-book/html/htmledition/stemming-and-lemmatization-1.html</a><a href="#fnref2">↩</a></p></li>
+<li id="fn3"><p>Brin, S. and Page, L. (1998) The Anatomy of a Large-Scale Hypertextual Web Search Engine. <a href="http://ilpubs.stanford.edu:8090/361/">http://ilpubs.stanford.edu:8090/361/</a><a href="#fnref3">↩</a></p></li>
 </ol>
 </div>
 
