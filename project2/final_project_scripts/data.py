@@ -195,12 +195,13 @@ def process_map(file_in, pretty = False):
     return data
 
 def store_data(data):
+    import pymongo
     from pymongo import MongoClient
     client = MongoClient("mongodb://localhost:27017")
     db = client.project2
     db.openstreet.remove()
     db.openstreet.insert(data)
-    db.openstreet.ensureIndex({"pos":"2dsphere"})
+    db.openstreet.ensure_index([("pos", pymongo.GEOSPHERE)])
 
 def test():
     data = process_map('map', True)
