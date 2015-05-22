@@ -5,3 +5,6 @@ NLP
 tm
 SnowballC
 koRpus
+GGally
+gridExtra
+data.table
