@@ -1,0 +1,632 @@
+---
+title: "Crowdflower Search Result Relevance"
+author: "Jay Teguh Wijaya"
+date: "Friday, May 15, 2015"
+output: html_document
+---
+
+## 1. Overview
+
+In this project, I am visualising a dataset of a Kaggle competition called [Search Result Relevance](https://www.kaggle.com/c/crowdflower-search-relevance) by **CrowdFlower**. By choosing this dataset, I am hoping to prove the practicality of doing Udacity courses i.e. have we really learned relevant knowledge to real-world data analysis problem? and what is the gap between what we have learned so far to what the industry needs?
+
+The dataset in this project has initially 6 variables, but we will have to preprocess it so we can use it in our analysis. In the end the dataset used in our analysis would contain 8+ variables, thus adhering to this project's requirements.
+
+## 2. Competition Description
+
+So many of our favorite daily activities are mediated by proprietary search algorithms. Whether you're trying to find a stream of that reality TV show on cat herding or shopping an eCommerce site for a new set of Japanese sushi knives, the relevance of search results is often responsible for your (un)happiness. Currently, small online businesses have no good way of evaluating the performance of their search algorithms, making it difficult for them to provide an exceptional customer experience.
+
+The goal of this competition is to create an open-source model that can be used to measure the relevance of search results. In doing so, you'll be helping enable small business owners to match the experience provided by more resource rich competitors. It will also provide more established businesses a model to test against. Given the queries and resulting product descriptions from leading eCommerce sites, this competition asks you to evaluate the accuracy of their search algorithms.
+
+## 3. About the Dataset
+
+To evaluate search relevancy, CrowdFlower has had their crowd evaluate searches from a handful of eCommerce websites. A total of 261 search terms were generated, and CrowdFlower put together a list of products and their corresponding search terms. Each rater in the crowd was asked to give a product search term a score of 1, 2, 3, 4, with 4 indicating the item completely satisfies the search query, and 1 indicating the item doesn't match the search term.
+
+The challenge in this competition is to predict the relevance score given the product description and product title. To ensure that your algorithm is robust enough to handle any noisy HTML snippets in the wild real world, the data provided in the product description field is raw and contains information that is irrelevant to the product.
+
+To discourage hand-labeling the data, CrowdFlower has also provided extra data that was not labeled by the crowd in the test set. This data is ignored when calculating your score.
+
+There are two datasets provided for this competition:
+
+1. **train.csv**: Contains training data, which contains target responses.
+2. **test.csv**: Contains test data that has no target responses.
+
+## 4. Initial Analysis and Data Exploration
+
+**Note**: Much of the scripts here are taken from the competition's official documentation. [^1]
+
+Let us first load the data and include all the required libraries.
+
+```{r echo=FALSE}
+# Hidden notes
+# Set the directory of your project here:
+setwd('D:/Projects/data_science/nanodegree_data_analyst/ndgree/project3/crowdflower_search_relevance')
+```
+
+```{r results='hide'}
+# init
+# readr library to successfully read csv files.
+suppressWarnings(library(readr))
+train_raw <- read_csv('./inputs/train.csv')
+test_raw <- read_csv('./inputs/test.csv')
+
+# Our processed datasets
+train <- data.frame(id = train_raw$id,
+                    median_relevance = train_raw$median_relevance,
+                    relevance_variance = train_raw$relevance_variance)
+test <- data.frame(id = test_raw$id)
+
+# ggplot2 for plotting.
+suppressWarnings(library(ggplot2))
+# GGally for initial quick-plotting multiple variables.
+suppressWarnings(library(GGally))
+# tm for text processing.
+suppressWarnings(suppressMessages(library(tm)))
+# SnowballC for word stemming used by tm.
+suppressWarnings(library(SnowballC))
+# For grid.arrange to work.
+suppressWarnings(suppressMessages(library(gridExtra)))
+# For fread to work.
+suppressWarnings(suppressMessages(library(data.table)))
+```
+
+See that `train_raw` has 6 columns:
+
+```{r}
+names(train_raw)
+```
+
+While `test_raw` has 4 columns:
+
+```{r}
+names(test_raw)
+```
+
+Some explanations of the columns:
+
+- **id**: Product ID
+- **query**: Search term used.
+- **product_title**: Name of the product.
+- **product_description**: The full product description along with HTML formatting tags.
+- **median_relevance**: Median relevance score by 3 raters. This value is an integer between 1 and 4. Only available in `train_raw` dataset.
+- **relevance_variance**: Variance of the relevance scores given by raters. Only available in `train_raw` dataset.
+
+Number of rows in each datasets:
+
+```{r}
+nrow(train_raw)
+```
+
+```{r}
+nrow(test_raw)
+```
+
+Let's look at the queries in the train set now.
+```{r}
+unique(train_raw$query)[1:10]
+# The number of unique train queries
+length(unique(train_raw$query))
+# The number of unique test queries
+length(unique(train_raw$query))
+# Are any queries different between the sets?
+length(setdiff(unique(train_raw$query), unique(test_raw$query)))
+```
+It looks like all the queries we see in the training set are also in the test set.
+
+Now let's look at the product titles
+```{r}
+unique(train_raw$product_title)[1:10]
+# The number of unique product titles in the training set
+length(unique(train_raw$product_title))
+# The number of product titles that are only in the train set or only in the test set
+length(setdiff(unique(train_raw$product_title), unique(test_raw$product_title)))
+# The number of product titles that are in both the train and test sets
+length(intersect(unique(train_raw$product_title), unique(test_raw$product_title)))
+```
+This tells us that we only see most of the product titles once, and that the product titles are mostly different between the train and test sets.
+
+Now let's start with some basic text analysis on the queries. First, we'll create a helper function
+
+> #### Text Mining Package (tm)
+> In this project, we are mostly using R's tm package to do all text manipulations.[^3]
+
+```{r}
+# Creating a function plot_word_counts to plot counts of word occurences in different sets
+plot_word_counts <- function(documents) {
+  # Keep only unique documents and convert them to lowercase
+  corpus <- Corpus(VectorSource(tolower(unique(documents))))
+  # Remove punctuation from the documents
+  corpus <- tm_map(corpus, removePunctuation)
+  # Remove english stopwords, such as "the" and "a"
+  corpus <- tm_map(corpus, removeWords, stopwords("english"))
+  
+  doc_terms <- DocumentTermMatrix(corpus)
+  doc_terms <- as.data.frame(as.matrix(doc_terms))
+  word_counts <- data.frame(Words=colnames(doc_terms), Counts=colSums(doc_terms))
+  # Sort from the most frequent words to the least frequent words
+  word_counts <- word_counts[order(word_counts$Counts, decreasing=TRUE),]
+  
+  top_words <- word_counts[1:10,]
+  top_words$Words <- factor(top_words$Words, levels=top_words$Words)
+
+  # Plot the words.
+  ggplot(aes(x = Words, y = Counts), data = top_words) +
+    geom_bar(stat = "identity", fill = '#4B92E3') +
+    scale_y_continuous(breaks = seq(0,max(top_words$Counts), ceiling(max(top_words$Counts)/10)))
+}
+
+```
+
+Then we will apply that function to find the most common terms in the query, product title, and product description.
+
+```{r cache=FALSE}
+# The top words in the query
+plot_word_counts(c(train_raw$query, test_raw$query))
+# The top words in the product title (from a random sample for computational reasons)
+set.seed(1)
+plot_word_counts(sample(c(train_raw$product_title, test_raw$product_title), 1000))
+# The top words in the product description (from a random sample for computational reasons)
+set.seed(1)
+plot_word_counts(sample(c(train_raw$product_description, test_raw$product_description), 1000))
+```
+
+## 5. Working Pipeline
+
+I divide the working pipeline for this project into 3 parts:
+1. **Discovering The Variables**: In here I would try out several preprocessing ideas to find out which variables have considerable impact on our model.
+2. **Preprocessing Dataset**: In here I would preprocess our dataset based on our findings on previous step.
+3. **Machine Learning Algorithms**: In this part I am going to try implementing the models I created into a prediction algorithm. Ideally I would try out several algorithms, then submit them  to see which ones perform better. But tor the course of this project I will only document R's linear regression.
+
+## 5. The Actual Work
+### 5.1. Discovering The Variables
+
+Now that we get a little more understanding on the data, we can begin to wrangle with it to squeeze out useful variables from the dataset.
+
+There are some preprocessing ideas that comes up directly after seeing the initial data, that may relate to relevance:
+
+1. How many times each word of search queries shown in title? In descriptions? Say for example if a user searches for "red fishing rod", then product "blue fishing rod" is obviously more relevant than "fishing hat".
+2. But in the same scenario, how about "red fishing hat"? maybe we need to divide the sentences into noun, adjective, verb, etc, and search from them first?
+3. Another important question is word synonyms. It would be expected that users looking for "dark women dress" be shown results containing "black women dress" and "black women dresses". For this reason we could *lemmatize* or *stem* the words.
+4. Let's review Google's early paper about search engines, we may be able to get some insights from there.
+5. Let's try other unlikely variables just for fun. Does number of words in product title and description have a correlation to relevance, somehow?
+
+### 5.2. Setting Up Score Calculation Helpers
+
+Score calculation is one of, if not the most important algorithms to find in this project. Basically we are trying to find the scoring system for query vs. search results that describes a clear correlation between the scores and median relevance (**i.e. the better the score, the higher median relevance should be**).
+
+> #### How about relevance variance?
+> The dataset provides relevance variance in one of the variables. While there is no important information we can gain by plotting them, this might be useful later when we do the predictions. I.e. perhaps by removing training data with high variance we may end up with more precise training data, which improve our prediction precision when we use it in test data.
+
+```{r}
+# This function calculates the score of matches between a list of queries and 
+# a list of texts. This score simply divides number of found terms in a query with total length of that query. Review how it works from test function test_calculate_match_score.
+calculate_match_score <- function(queries, texts) {
+  scores <- list(length=length(queries))
+  for (i in 1:length(queries)) {
+    query <- queries[i]
+    text <- texts[i]
+    # Remove leading and trailing whitespaces, then split string by whitespaces.
+    query_nodes <- unique(strsplit(gsub("^\\s+|\\s+$", "",
+                                        gsub("\\s+", " ", query)), " ")[[1]])
+    text_nodes <- unique(strsplit(gsub("^\\s+|\\s+$", "",
+                                       gsub("\\s+", " ", text)), " ")[[1]])
+    score <- 0
+    for(query_node in query_nodes) {
+      score <- score + length(grep(query_node, text_nodes))
+    }
+    the_score <- score / length(query_nodes)
+    if(the_score > 1) {
+      the_score <- 1
+    }
+    scores[[i]] <- (the_score)
+  }
+  return(as.numeric(scores))
+}
+
+# Testing function calculate_match_score
+test_calculate_match_score <- function() {
+  queries <- c("first query",
+               "second query ",
+               "third query",
+               " this fourth query should",
+               "led christma light",
+               "soda stream")
+  texts <- c(
+    "first one should  return 0.5",
+    "this one should return 0",
+    "this third query   should return 1 third",
+    "this fourth one should return 0.75",
+    "set  10 batteri oper multi led train christma light  clear wire",
+    "sodastream home soda maker kit")
+  scores <- calculate_match_score(queries, texts)
+  stopifnot(all.equal(scores[[1]], 0.5) &&
+            all.equal(scores[[2]], 0) &&
+            all.equal(scores[[3]], 1) &&
+            all.equal(scores[[4]], 0.75) &&
+            all.equal(scores[[5]], 1) &&
+            all.equal(scores[[6]], 1))
+  
+}
+test_calculate_match_score()
+train$title_simple_score <- calculate_match_score(train_raw$query, train_raw$product_title)
+train$description_simple_score <- calculate_match_score(train_raw$query, train_raw$product_description)
+```
+
+Let's plot simple scoring system to median relevance and relevance variance to see how effective it is.
+
+```{r cache=FALSE}
+p1 <- ggplot(aes(x = median_relevance, y = title_simple_score), data = train) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+p2 <- ggplot(aes(x = median_relevance, y = description_simple_score), data = train) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+From our initial plot we see that:
+
+As title and description simple scores get larger, so does median relevance. This shows that there is a correlation between more terms in query found within title and description.
+
+Although, it makes little sense that mean of scores from median relevance 2 to 4 gets lower (In other words many people voted that the results are relevant although they see no term they enquired within title and description scores). Let us see if this was caused by the number of rows with 0 matching scores by removing 0 scored rows from our plots:
+
+```{r cache=FALSE}
+p1 <- ggplot(aes(x = median_relevance, y = title_simple_score), data = train) +
+  scale_y_continuous(limits = c(0.01, 1)) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+p2 <- ggplot(aes(x = median_relevance, y = description_simple_score), data = train) +
+  scale_y_continuous(limits = c(0.01, 1)) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+suppressWarnings(grid.arrange(p1, p2, ncol = 2))
+```
+
+We can see a more visible pattern here, but scoring with title still looks incorrect. Next, let's see if by using stemmed words we could clarify the results further as by using stemmed words -> less words to compare -> higher scores in general -> we can spread observations with 0 scores into higher score values.
+
+## 5.3. Setting Up Stemming Helpers
+
+> #### What is Stemming?
+> Stemming is the process of finding the root of a word. For example "running", "run", "runs" all derived from the same word "run". By stemming the words, we are letting our algorithm to be "more lenient" in finding word matches i.e. when you queried for "run", "Delilah is running" can be considered to contain that word.
+
+Below is our helper to stem passed corpus. In this helper, we also remove punctuations (".", ",", "!", "?", etc.) and stop words ("is", "are", "does", etc.).
+
+```{r}
+# `prepare_corpus` is a function to, well, prepare our corpus of words.
+# From it we will run our stemming algorithm.
+prepare_corpus <- function(df, var) {
+  eval(parse(text=paste("corpus <- VCorpus(VectorSource(tolower(",
+             "df$", var, ")))", sep="")))
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, removeWords, stopwords("english"))
+  corpus <- tm_map(corpus, stripWhitespace)
+}
+
+# This function stems the texts found in "var" 
+stem_corpus <- function(corpus) {
+  corpus <- tm_map(corpus, stemDocument)
+  
+  corpus_text <- data.frame(
+    text=unlist(sapply(corpus, `[`, "content")),
+    stringsAsFactors=F
+  )
+  # "Simple" word count with regex.
+  corpus_text$count <- sapply(gregexpr("\\b\\W+\\b", corpus_text$text, perl=TRUE), function(x) sum(x>0) ) + 1
+  # corpus_text$count <- sapply(corpus_text$text, function(x) stri_stats_latex(x)[["Words"]])
+  return(corpus_text)
+}
+
+test_stem_corpus <- function() {
+  df <- data.frame(query = c('run', 'running', 'runs running', 'running shoes', 'ran', 'I am running'))
+  corpus <- prepare_corpus(df, 'query')
+  corpus_text <- stem_corpus(corpus)
+  stopifnot(
+    all.equal(corpus_text$text[1], 'run'),
+    all.equal(corpus_text$count[1], 1),
+    all.equal(corpus_text$text[2], 'run'),
+    all.equal(corpus_text$count[2], 1),
+    all.equal(corpus_text$text[3], 'run run'),
+    all.equal(corpus_text$count[3], 2),
+    all.equal(corpus_text$text[4], 'run shoe'),
+    all.equal(corpus_text$count[4], 2),
+    all.equal(corpus_text$text[5], 'ran'),
+    all.equal(corpus_text$count[5], 1),
+    all.equal(corpus_text$text[6], ' run'),
+    all.equal(corpus_text$count[6], 1)
+  )
+}
+
+test_stem_corpus()
+```
+
+## 5.4. Preprocessing Dataset
+
+Preprocess our dataset with that stemming helper we just created.
+
+```{r}
+preprocess_data <- function(df, new_df) {  
+  cat("processing queries\n")
+  corpus <- prepare_corpus(df, "query")
+  stemmed_df <- stem_corpus(corpus)
+  new_df$query_stemmed <- stemmed_df$text
+  new_df$query_stemmed_count <- stemmed_df$count
+  cat("queries processed\n")
+
+  cat("processing product_titles\n")
+  corpus <- prepare_corpus(df, "product_title")
+  stemmed_df <- stem_corpus(corpus)
+  new_df$product_title_stemmed <- stemmed_df$text
+  new_df$product_title_stemmed_count <- stemmed_df$count
+  cat("product_titles processed\n")
+
+  cat("processing product_descriptions\n")
+  corpus <- prepare_corpus(df, "product_description")
+  stemmed_df <- stem_corpus(corpus)
+  new_df$product_description_stemmed <- stemmed_df$text
+  new_df$product_description_stemmed_count <- stemmed_df$count
+  cat("product_descriptions processed\n")
+  
+  #------------------------------------------------------------------------
+  # Score Calculation
+  #------------------------------------------------------------------------
+  
+  cat("calculating query vs stemmed product title match score\n")
+  new_df$title_stemmed_match_score <- calculate_match_score(new_df$query_stemmed, new_df$product_title_stemmed)
+  cat("query vs stemmed product title match score calculated\n")
+
+  cat("calculating query vs stemmed product description match score\n")
+  new_df$description_stemmed_match_score <- calculate_match_score(new_df$query_stemmed, new_df$product_description_stemmed)
+  cat("query vs stemmed product description match score calculated\n")
+  if ('median_relevance' %in% colnames(df)) {
+    new_df$median_relevance <- df$median_relevance
+  }
+    
+  if ('relevance_variance' %in% colnames(df)) {
+    new_df$relevance_variance <- df$relevance_variance    
+  }
+  
+  new_df$title_simple_score <- calculate_match_score(df$query, df$product_title)
+  new_df$description_simple_score <- calculate_match_score(df$query, df$product_description)
+
+  return(new_df)
+}
+```
+
+Alright, now let us run the preprocessor against our training dataset. It takes awhile to preprocess the whole data, so we store the dataset in a file if it does not exist yet, or load the file when it already does.
+
+```{r}
+destfile <- "p_train.Rda"
+if(!file.exists(destfile)) {
+  train <- preprocess_data(train_raw, train)
+  write.table(train,destfile, col.names=NA)
+} else {
+  train <- fread(destfile, header = TRUE, skip = 0)
+  # Drop the first V1 column automatically created by write.table
+  train$V1 <- NULL
+}
+
+```
+
+### 5.4.1. Exploring Our Preprocessed Dataset
+
+Before continuing, let us now quickly explore the dataset we have just created.
+
+See that our preprocessed dataset `train` has 13 columns:
+
+```{r}
+names(train)
+```
+
+Some explanations of the new columns:
+
+- **title_simple_score**: Scoring with this simple formula: `score = number of terms in query found in title / total number of terms in that query`. With this formula, *1.00* is the highest score, which means we found all terms in query in title. queries and titles used here are *NOT* stemmed.
+- **description_simple_score**: Similar to `title_simple_score` but for `product_description` instead.
+- **query_stemmed**: Stemmed queries.
+- **query_stemmed_count**: Number of terms found in stemmed queries.
+- **product_title_stemmed**: Stemmed product titles.
+- **product_title_stemmed_count**: Number of terms found in stemmed product titles.
+- **product_description_stemmed**: Stemmed product descriptions.
+- **product_description_stemmed_count**: Total number of terms found in stemmed product descriptions.
+- **title_stemmed_match_score**: Scores found by comparing stemmed queries and product titles.
+- **description_stemmed_match_score**: Scores found by comparing stemmed queries and product descriptions.
+
+Number of rows in dataset:
+
+```{r}
+nrow(train)
+```
+
+Let's look at the queries in the train set now.
+```{r}
+unique(train$query_stemmed)[1:10]
+# The number of unique train queries
+length(unique(train$query_stemmed))
+```
+
+We see that stemming works properly for our dataset, good.
+
+Now let's look at the product titles
+```{r}
+unique(train$product_title_stemmed)[1:10]
+# The number of unique product titles in the training set
+length(unique(train$product_title_stemmed))
+```
+
+```{r cache=FALSE}
+# The top words in the query
+plot_word_counts(c(train$query_stemmed))
+# The top words in the stemmed product title (from a random sample for computational reasons)
+set.seed(1)
+plot_word_counts(sample(c(train$product_title_stemmed), 1000))
+# The top words in the stemmed product description (from a random sample for computational reasons)
+plot_word_counts(sample(c(train$product_description_stemmed), 1000))
+```
+
+### 5.4.2. Finding The Effectiveness of Stemming
+
+As Data Analyists, we are trained to be sceptical at all times. This time we want to know for sure, does stemming the dataset really improve our model?
+
+Let's plot the score of stemmed matches with their relevance, and compare those with non-stemmed dataset.
+
+```{r cache=FALSE}
+p1 <- ggplot(aes(x = median_relevance, y = title_stemmed_match_score), data = train) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+p2 <- ggplot(aes(x = median_relevance, y = description_stemmed_match_score), data = train) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+p3 <- ggplot(aes(x = median_relevance, y = title_simple_score), data = train) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+p4 <- ggplot(aes(x = median_relevance, y = description_simple_score), data = train) +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+Looks like stemming does make our model better, since the correlation between median relevance and score becomes more apparent, so let's keep it!
+
+## 6. Final Plots and Summary
+
+Let us plot relevance against all other variables and see their relations.
+
+```{r cache=FALSE}
+ggplot(aes(x = median_relevance, y = title_stemmed_match_score), data = train) +
+  ggtitle("Median Relevance vs Title Stemmed Score") +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+ggplot(aes(x = median_relevance, y = description_stemmed_match_score), data = train) +
+  ggtitle("Median Relevance vs Description Stemmed Score") +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+ggplot(aes(x = median_relevance, y = query_stemmed_count), data = train) +
+  ggtitle("Median Relevance vs Query Stemmed Count") +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+
+ggplot(aes(x = median_relevance, y = product_title_stemmed_count), data = train) +
+  ggtitle("Median Relevance vs Title Stemmed Count") +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+  
+ggplot(aes(x = median_relevance, y = product_description_stemmed_count), data = train) +
+  ggtitle("Median Relevance vs Description Stemmed Count") +
+  scale_y_log10() +
+  geom_jitter(alpha=.2) +
+  geom_line(colour = 'blue', stat = 'summary', fun.y = mean, size=1)
+```
+
+From the above plots, we found that:
+
+1. Stemmed matching score correlates quite well with search relevance.
+2. Matching query with title provides more relevance than matching query with product descriptions. This can be seen from the steepness of score means (the blue lines) for query vs title that is steeper.
+3. number of terms in queries, titles, and descriptions do not have any correlation to search relevance. However, somehow the training dataset contains more records with high relevance.
+
+## 7. Prediction
+
+```{r}
+suppressWarnings(suppressMessages(library(memisc)))
+
+m1 <- lm(I(median_relevance) ~ I(title_stemmed_match_score), data = train)
+m2 <- update(m1, ~ . + description_stemmed_match_score)
+mtable(m1, m2)
+
+# Let's use this data for testing our prediction model:
+# query: projector
+# title: ViewSonic Pro8200 DLP Multimedia Projector
+# description:
+# title_stemmed_match_score: 1
+# description_stemmed_match_score: 0
+# (target) median_relevance: 4
+
+searchResult = data.frame(
+  query = "projector",
+  title = "ViewSonic Pro8200 DLP Multimedia Projector",
+  description = "",
+  title_stemmed_match_score = 1,
+  description_stemmed_match_score = 0)
+modelEstimate = predict(m2, newdata = searchResult,
+                        interval="prediction", level = .95)
+exp(modelEstimate)
+```
+
+Alright, seems like lm method only works for continuous targets. Since our problem is those of classification targets, we need to use another method called vglm from VGAM package:[^4]
+
+```{r}
+
+# load the package
+library(VGAM)
+# fit model
+fit <- vglm(median_relevance ~ I(title_stemmed_match_score) + I(description_stemmed_match_score),
+            family=multinomial, data=train)
+# summarize the fit
+summary(fit)
+# make predictions
+probabilities <- predict(fit, searchResult, type="response")
+# See result
+probabilities
+```
+
+Our model would have predicted median relevance score of 4 with given probability 73.6% which is the correct answer.
+
+```{r}
+all_probabilities <- predict(fit, train, type='response')
+train$predicted_relevance <- apply(all_probabilities[],1,which.max)
+accuracy <- 
+```
+
+## 8. Reflection
+
+This project has given me much understanding of how to use R in real world case. It was really interesting trying to find correlations between variables and build a prediction based on given training data.
+
+The model I have ended up in this project may not yet be the most optimal model for predicting the data. Additional adjustments to the data and other explorations may be needed. Some ideas I have found among others are:
+
+#### 8.1. TF-IDF Scoring
+
+Tf-idf stands for term frequency-inverse document frequency, and the tf-idf weight is a weight often used in information retrieval and text mining. This weight is a statistical measure used to evaluate how important a word is to a document in a collection or corpus. The importance increases proportionally to the number of times a word appears in the document but is offset by the frequency of the word in the corpus. Variations of the tf-idf weighting scheme are often used by search engines as a central tool in scoring and ranking a document's relevance given a user query.[^2]
+
+It is likely that instead of using a simple scoring system, we are better off using this TF-IDF scoring system.
+
+##### 8.1.1 Computing TF-IDF:
+**TF:** `TF(t) = (Number of times term t appears in a document) / (Total number of terms in the document)`
+
+**IDF:** `IDF(t) = log_e(Total number of documents / Number of documents with term t in it)`
+
+#### 8.2. Lemmatize instead of Stem
+
+**Stemming** usually refers to a crude heuristic process that chops off the ends of words in the hope of achieving this goal correctly most of the time, and often includes the removal of derivational affixes.
+
+**Lemmatization** usually refers to doing things properly with the use of a vocabulary and morphological analysis of words, normally aiming to remove inflectional endings only and to return the base or dictionary form of a word, which is known as the *lemma*.
+
+If confronted with the token *saw*, stemming might return just *s*, whereas lemmatization would attempt to return either *see* or *saw* depending on whether the use of the token was as a *verb* or a *noun*. The two may also differ in that stemming most commonly collapses derivationally related words, whereas lemmatization commonly only collapses the different inflectional forms of a lemma.
+
+Linguistic processing for stemming or lemmatization is often done by an additional plug-in component to the indexing process, and a number of such components exist, both commercial and open-source. [^5]
+
+In our project we have been using stemming to preprocess the terms, but further exploration is required to see if lemmatizing the terms would yield better model.
+
+#### 8.3. Google's Early Paper on Search Engines
+
+In Google's early paper about pagerank chapter 3.1. and 3.2., it is explained that searching on the web is vastly different than searching on controlled environment, like text documents, for example. In our dataset, although it seems that users are only looking for a specific product within a single website, that user may compare the result they got with everything else available on the internet instead of that specific product. [^6]
+
+I wonder if we could somehow infer meta information of the products, can we come up with better predictions?
+
+## 9. References
+
+[^1]: Exploring Crowdflower Data: https://www.kaggle.com/users/993/ben-hamner/crowdflower-search-relevance/exploring-the-crowdflower-data
+
+[^2]: TF-IDF - A Single Page Tutorial: http://www.tfidf.com/
+
+[^3]: Graham Williams (2014) Hands-On Data Science with R Text Mining http://onepager.togaware.com/TextMiningO.pdf
+
+[^4]: vlgm method from VGAM package. http://www.inside-r.org/packages/cran/VGAM/docs/vglm
+
+[^5]: Stemming and lemmatization. http://nlp.stanford.edu/IR-book/html/htmledition/stemming-and-lemmatization-1.html
+
+[^6]: Brin, S. and Page, L. (1998) The Anatomy of a Large-Scale Hypertextual Web Search Engine. http://ilpubs.stanford.edu:8090/361/

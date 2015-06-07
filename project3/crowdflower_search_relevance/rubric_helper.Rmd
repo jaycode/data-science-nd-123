@@ -1,0 +1,74 @@
+---
+title: "Rubric Helper"
+author: "Jay"
+date: "Thursday, June 04, 2015"
+output: html_document
+---
+
+This document is intended to help reviewer and myself in adhering to Rubric specifications, and a kind of reasoning why this project **exceeded specifications**.
+
+### Code Functionality
+
+**Does the code work?**
+Yes, all code is functional
+
+**Does project utilize good coding practices?**
+There is no repetition in the code, and any complex calculations and algorithms were accompanied with functions to test them before being used. I believe this should suffice to exceed specifications.
+
+### Quality of Analysis
+
+**Is the data set explored in many ways?**
+Many plot types were used to explore the data, and even before we have the dataset ready, some data wrangling were done to it i.e. to stem the text and calculate query matching scores. Unknown correlation like median relevances vs other variables was also explored in this project.
+
+**Are questions and observations included as text throughout the analysis?**
+Yes, the project was written in narrative-style writing describing my train of thoughts.
+
+**Is the flow of the analysis easy to follow?**
+All plots in this project have their reasoning explained.
+
+**Are there a variety of relevant visualizations and statistical summaries?**
+This project contains X plots and all of them explain the correlations and trends between variables.
+
+**Is the data visualized using appropriate plots and parameter choices?**
+Some of the bivariate plots are also drawn in box plot as well as scatter plots, in order to find exactly the number of outliers and median.
+
+### Final Plots and Summary
+
+**Has a Final Plots and Summary section been included in the project?**
+Yes
+
+**Are the final three plots varied and do they meet some of the following criteria:**
+
+- **Draw comparisons.**
+  The plots compare the effectiveness of stemming in model's relevancy.
+- **Identify trends.**
+  Multivariate plots clearly show the trends of given dataset.
+- **Engage a wide audience.**
+  I am unsure what accounts for this point.
+- **Explain a complicated finding.**
+  All the findings were explained, and when it was optimal, I added another suggestion on how to manipulate our data for our use.
+- **Clarify a gap between perception and reality.**
+  In second plot a gap was found between what people would expect, and what really happened.
+- **Enable the reader to digest large amounts of information.**
+  The final plots always display more than two connections between variables. I would say the information contained in them are quite large in this case.
+
+**Are the plots appropriate?**
+Yes.
+
+**Are the plots polished?**
+All the plots were labeled on their axis, titled, and I made sure the labels, titles and units are readable.
+
+**Are the plots explained?**
+Yes, explanations were written either before or after the plots.
+
+### Project Readability
+
+**Is the R code in the student's RMD file commented in a way that is useful and not superfluous?**
+Unusual algorithms like the one for scoring the matches are described in details and added a test code to help visualizing with examples. I think that amounts to exceeding specifications.
+
+**Does student's code use formatting techniques (indents, spaces, line breaks, etc.) to improve readability?**
+All lines are indented and shorter than 80 characters per line, and again with test code it improves readability when another developer needs to learn the behavior of my code.
+
+**Is Markdown used to improve the presentation of the knitted HTML file?**
+Markdown formatting is consistent throughout the report, and knitr chunks are used to wrap all code. Some knitr options was also used to hide error and warning messages that could distract readers.
+

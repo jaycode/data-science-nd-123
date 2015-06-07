@@ -1,0 +1,15 @@
+base
+readr
+ggplot2
+GGally
+NLP
+tm
+SnowballC
+gridExtra
+data.table
+lattice
+MASS
+memisc
+VGAM
+nlme
+mgcv
